@@ -105,6 +105,10 @@ class Build {
 
   static String get _servicesDir => join(current, 'services', 'helper');
 
+  static String helperFileName(Target target) {
+    return 'FlClashHelperService${target.executableExtensionName}';
+  }
+
   static String get distPath => join(current, 'dist');
 
   static String _getCc(BuildItem buildItem) {
@@ -131,6 +135,20 @@ class Build {
   }
 
   static String get tags => 'with_gvisor';
+
+  static Future<bool> hasCommand(String command) async {
+    final executable = Platform.isWindows ? 'where' : 'which';
+    try {
+      final process = await Process.run(
+        executable,
+        [command],
+        runInShell: true,
+      );
+      return process.exitCode == 0 && process.stdout.toString().trim().isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
   static Future<void> exec(
     List<String> executable, {
@@ -280,7 +298,7 @@ class Build {
     final targetPath = join(
       outDir,
       target.name,
-      'FlClashHelperService${target.executableExtensionName}',
+      helperFileName(target),
     );
     await File(outPath).copy(targetPath);
   }
@@ -356,6 +374,13 @@ class BuildCommand extends Command {
       valueHelp: ['pre', 'stable'].join(','),
       help: 'The $name build env',
     );
+    if (target == Target.windows) {
+      argParser.addFlag(
+        'skip-helper',
+        negatable: false,
+        help: 'Skip building Windows helper service',
+      );
+    }
   }
 
   @override
@@ -442,6 +467,9 @@ class BuildCommand extends Command {
     final String out = argResults?['out'] ?? (target.same ? 'app' : 'core');
     final archName = argResults?['arch'];
     final env = argResults?['env'] ?? 'pre';
+    final skipHelper = target == Target.windows
+        ? (argResults?['skip-helper'] ?? false)
+        : false;
     final currentArches = arches
         .where((element) => element.name == archName)
         .toList();
@@ -459,9 +487,18 @@ class BuildCommand extends Command {
 
     String? coreSha256;
 
-    if (Platform.isWindows) {
+    if (Platform.isWindows && target == Target.windows) {
       coreSha256 = await Build.calcSha256(corePaths.first);
-      await Build.buildHelper(target, coreSha256);
+      if (skipHelper) {
+        print('skip Windows helper build');
+      } else if (await Build.hasCommand('cargo')) {
+        await Build.buildHelper(target, coreSha256);
+      } else {
+        print(
+          'warning: cargo is not available, skip building ${Build.helperFileName(target)}. '
+          'Windows privileged service features will be unavailable in this build.',
+        );
+      }
     }
     await _buildEnvFile(env, coreSha256: coreSha256);
     if (out != 'app') {
