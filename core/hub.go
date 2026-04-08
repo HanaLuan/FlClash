@@ -100,8 +100,6 @@ func handleGetProxies() ProxiesData {
 	runLock.Lock()
 	defer runLock.Unlock()
 
-	nameList := config.GetProxyNameList()
-
 	proxies := make(map[string]constant.Proxy)
 
 	for name, proxy := range tunnel.Proxies() {
@@ -113,29 +111,26 @@ func handleGetProxies() ProxiesData {
 		}
 	}
 
-	hasGlobal := false
-	allNames := make([]string, 0, len(nameList)+1)
-
-	for _, name := range nameList {
-		if name == "GLOBAL" {
-			hasGlobal = true
-		}
-
-		p, ok := proxies[name]
-		if !ok || p == nil {
+	allNames := make([]string, 0, len(proxies))
+	for name, proxy := range proxies {
+		if name == "GLOBAL" || proxy == nil {
 			continue
 		}
-		switch p.Type() {
+
+		group, ok := proxy.Adapter().(outboundgroup.ProxyGroup)
+		if !ok || group.Hidden() {
+			continue
+		}
+
+		switch proxy.Type() {
 		case constant.Selector, constant.URLTest, constant.Fallback, constant.Relay, constant.LoadBalance:
 			allNames = append(allNames, name)
-		default:
 		}
 	}
+	slices.Sort(allNames)
 
-	if !hasGlobal {
-		if p, ok := proxies["GLOBAL"]; ok && p != nil {
-			allNames = append([]string{"GLOBAL"}, allNames...)
-		}
+	if p, ok := proxies["GLOBAL"]; ok && p != nil {
+		allNames = append([]string{"GLOBAL"}, allNames...)
 	}
 
 	return ProxiesData{
@@ -183,7 +178,7 @@ func handleChangeProxy(data string, fn func(string string)) {
 }
 
 func handleGetTraffic(onlyStatisticsProxy bool) string {
-	up, down := statistic.DefaultManager.NowTraffic(onlyStatisticsProxy)
+	up, down := statistic.DefaultManager.Now(onlyStatisticsProxy)
 	traffic := map[string]int64{
 		"up":   up,
 		"down": down,
@@ -197,7 +192,7 @@ func handleGetTraffic(onlyStatisticsProxy bool) string {
 }
 
 func handleGetTotalTraffic(onlyStatisticsProxy bool) string {
-	up, down := statistic.DefaultManager.TotalTraffic(onlyStatisticsProxy)
+	up, down := statistic.DefaultManager.Total(onlyStatisticsProxy)
 	traffic := map[string]int64{
 		"up":   up,
 		"down": down,
