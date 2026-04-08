@@ -231,6 +231,14 @@ class Windows {
       return true;
     }
 
+    if (!await File(appPath.helperPath).exists()) {
+      commonPrint.log(
+        'windows helper executable not found: ${appPath.helperPath}',
+        logLevel: LogLevel.warning,
+      );
+      return false;
+    }
+
     final command = [
       '/c',
       if (status == WindowsHelperServiceStatus.presence) ...[
