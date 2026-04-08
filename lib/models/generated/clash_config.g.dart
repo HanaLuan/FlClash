@@ -15,15 +15,20 @@ _ProxyGroup _$ProxyGroupFromJson(Map<String, dynamic> json) => _ProxyGroup(
   use: (json['use'] as List<dynamic>?)?.map((e) => e as String).toList(),
   interval: (json['interval'] as num?)?.toInt(),
   lazy: json['lazy'] as bool?,
+  disableUDP: json['disable-udp'] as bool?,
   url: json['url'] as String?,
   timeout: (json['timeout'] as num?)?.toInt(),
   maxFailedTimes: (json['max-failed-times'] as num?)?.toInt(),
   filter: json['filter'] as String?,
-  excludeFilter: json['expected-filter'] as String?,
+  excludeFilter: json['exclude-filter'] as String?,
   excludeType: json['exclude-type'] as String?,
-  expectedStatus: json['expected-status'],
+  expectedStatus: json['expected-status'] as String?,
+  includeAll: json['include-all'] as bool?,
+  includeAllProxies: json['include-all-proxies'] as bool?,
+  includeAllProviders: json['include-all-providers'] as bool?,
   hidden: json['hidden'] as bool?,
   icon: json['icon'] as String?,
+  order: json['order'] as String?,
 );
 
 Map<String, dynamic> _$ProxyGroupToJson(_ProxyGroup instance) =>
@@ -34,15 +39,20 @@ Map<String, dynamic> _$ProxyGroupToJson(_ProxyGroup instance) =>
       'use': instance.use,
       'interval': instance.interval,
       'lazy': instance.lazy,
+      'disable-udp': instance.disableUDP,
       'url': instance.url,
       'timeout': instance.timeout,
       'max-failed-times': instance.maxFailedTimes,
       'filter': instance.filter,
-      'expected-filter': instance.excludeFilter,
+      'exclude-filter': instance.excludeFilter,
       'exclude-type': instance.excludeType,
       'expected-status': instance.expectedStatus,
+      'include-all': instance.includeAll,
+      'include-all-proxies': instance.includeAllProxies,
+      'include-all-providers': instance.includeAllProviders,
       'hidden': instance.hidden,
       'icon': instance.icon,
+      'order': instance.order,
     };
 
 const _$GroupTypeEnumMap = {
@@ -51,6 +61,18 @@ const _$GroupTypeEnumMap = {
   GroupType.Fallback: 'Fallback',
   GroupType.LoadBalance: 'LoadBalance',
   GroupType.Relay: 'Relay',
+};
+
+_Proxy _$ProxyFromJson(Map<String, dynamic> json) => _Proxy(
+  name: json['name'] as String,
+  type: json['type'] as String,
+  now: json['now'] as String?,
+);
+
+Map<String, dynamic> _$ProxyToJson(_Proxy instance) => <String, dynamic>{
+  'name': instance.name,
+  'type': instance.type,
+  'now': instance.now,
 };
 
 _RuleProvider _$RuleProviderFromJson(Map<String, dynamic> json) =>
@@ -168,7 +190,7 @@ _FallbackFilter _$FallbackFilterFromJson(
   geoipCode: json['geoip-code'] as String? ?? 'CN',
   geosite:
       (json['geosite'] as List<dynamic>?)?.map((e) => e as String).toList() ??
-      const ['gfw'],
+      const [''],
   ipcidr:
       (json['ipcidr'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const ['240.0.0.0/4'],
@@ -304,89 +326,85 @@ Map<String, dynamic> _$SubRuleToJson(_SubRule instance) => <String, dynamic>{
   'name': instance.name,
 };
 
-_ClashConfigSnippet _$ClashConfigSnippetFromJson(Map<String, dynamic> json) =>
-    _ClashConfigSnippet(
-      proxyGroups:
-          (json['proxy-groups'] as List<dynamic>?)
-              ?.map((e) => ProxyGroup.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          const [],
-      rule: json['rules'] == null ? const [] : _genRule(json['rules'] as List?),
-      ruleProvider: json['rule-providers'] == null
-          ? const []
-          : _genRuleProviders(json['rule-providers'] as Map<String, dynamic>),
-      subRules: json['sub-rules'] == null
-          ? const []
-          : _genSubRules(json['sub-rules'] as Map<String, dynamic>),
-    );
-
-Map<String, dynamic> _$ClashConfigSnippetToJson(_ClashConfigSnippet instance) =>
-    <String, dynamic>{
-      'proxy-groups': instance.proxyGroups,
-      'rules': instance.rule,
-      'rule-providers': instance.ruleProvider,
-      'sub-rules': instance.subRules,
-    };
-
 _ClashConfig _$ClashConfigFromJson(Map<String, dynamic> json) => _ClashConfig(
-  mixedPort: (json['mixed-port'] as num?)?.toInt() ?? defaultMixedPort,
-  socksPort: (json['socks-port'] as num?)?.toInt() ?? 0,
-  port: (json['port'] as num?)?.toInt() ?? 0,
-  redirPort: (json['redir-port'] as num?)?.toInt() ?? 0,
-  tproxyPort: (json['tproxy-port'] as num?)?.toInt() ?? 0,
-  mode: $enumDecodeNullable(_$ModeEnumMap, json['mode']) ?? Mode.rule,
-  allowLan: json['allow-lan'] as bool? ?? false,
-  logLevel:
-      $enumDecodeNullable(_$LogLevelEnumMap, json['log-level']) ??
-      LogLevel.error,
-  ipv6: json['ipv6'] as bool? ?? false,
-  findProcessMode:
-      $enumDecodeNullable(
-        _$FindProcessModeEnumMap,
-        json['find-process-mode'],
-        unknownValue: FindProcessMode.always,
-      ) ??
-      FindProcessMode.always,
-  keepAliveInterval:
-      (json['keep-alive-interval'] as num?)?.toInt() ??
-      defaultKeepAliveInterval,
-  unifiedDelay: json['unified-delay'] as bool? ?? true,
-  tcpConcurrent: json['tcp-concurrent'] as bool? ?? true,
-  tun: json['tun'] == null
-      ? defaultTun
-      : Tun.safeFormJson(json['tun'] as Map<String, Object?>?),
-  dns: json['dns'] == null
-      ? defaultDns
-      : Dns.safeDnsFromJson(json['dns'] as Map<String, Object?>),
-  geoXUrl: json['geox-url'] == null
-      ? defaultGeoXUrl
-      : GeoXUrl.safeFormJson(json['geox-url'] as Map<String, Object?>?),
-  geodataLoader:
-      $enumDecodeNullable(_$GeodataLoaderEnumMap, json['geodata-loader']) ??
-      GeodataLoader.memconservative,
   proxyGroups:
       (json['proxy-groups'] as List<dynamic>?)
           ?.map((e) => ProxyGroup.fromJson(e as Map<String, dynamic>))
           .toList() ??
       const [],
-  rule:
-      (json['rule'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+  rules: json['rules'] == null ? const [] : _genRule(json['rules'] as List?),
+  proxies:
+      (json['proxies'] as List<dynamic>?)
+          ?.map((e) => Proxy.fromJson(e as Map<String, dynamic>))
+          .toList() ??
       const [],
-  globalUa: json['global-ua'] as String?,
-  externalController:
-      $enumDecodeNullable(
-        _$ExternalControllerStatusEnumMap,
-        json['external-controller'],
-      ) ??
-      ExternalControllerStatus.close,
-  hosts:
-      (json['hosts'] as Map<String, dynamic>?)?.map(
+  proxyTypeMap:
+      (json['proxyTypeMap'] as Map<String, dynamic>?)?.map(
         (k, e) => MapEntry(k, e as String),
       ) ??
       const {},
 );
 
 Map<String, dynamic> _$ClashConfigToJson(_ClashConfig instance) =>
+    <String, dynamic>{
+      'proxy-groups': instance.proxyGroups,
+      'rules': instance.rules,
+      'proxies': instance.proxies,
+      'proxyTypeMap': instance.proxyTypeMap,
+    };
+
+_PatchClashConfig _$PatchClashConfigFromJson(Map<String, dynamic> json) =>
+    _PatchClashConfig(
+      mixedPort: (json['mixed-port'] as num?)?.toInt() ?? defaultMixedPort,
+      socksPort: (json['socks-port'] as num?)?.toInt() ?? 0,
+      port: (json['port'] as num?)?.toInt() ?? 0,
+      redirPort: (json['redir-port'] as num?)?.toInt() ?? 0,
+      tproxyPort: (json['tproxy-port'] as num?)?.toInt() ?? 0,
+      mode: $enumDecodeNullable(_$ModeEnumMap, json['mode']) ?? Mode.rule,
+      allowLan: json['allow-lan'] as bool? ?? false,
+      logLevel:
+          $enumDecodeNullable(_$LogLevelEnumMap, json['log-level']) ??
+          LogLevel.error,
+      ipv6: json['ipv6'] as bool? ?? false,
+      findProcessMode:
+          $enumDecodeNullable(
+            _$FindProcessModeEnumMap,
+            json['find-process-mode'],
+            unknownValue: FindProcessMode.always,
+          ) ??
+          FindProcessMode.always,
+      keepAliveInterval:
+          (json['keep-alive-interval'] as num?)?.toInt() ??
+          defaultKeepAliveInterval,
+      unifiedDelay: json['unified-delay'] as bool? ?? true,
+      tcpConcurrent: json['tcp-concurrent'] as bool? ?? true,
+      tun: json['tun'] == null
+          ? defaultTun
+          : Tun.safeFormJson(json['tun'] as Map<String, Object?>?),
+      dns: json['dns'] == null
+          ? defaultDns
+          : Dns.safeDnsFromJson(json['dns'] as Map<String, Object?>),
+      geoXUrl: json['geox-url'] == null
+          ? defaultGeoXUrl
+          : GeoXUrl.safeFormJson(json['geox-url'] as Map<String, Object?>?),
+      geodataLoader:
+          $enumDecodeNullable(_$GeodataLoaderEnumMap, json['geodata-loader']) ??
+          GeodataLoader.memconservative,
+      globalUa: json['global-ua'] as String?,
+      externalController:
+          $enumDecodeNullable(
+            _$ExternalControllerStatusEnumMap,
+            json['external-controller'],
+          ) ??
+          ExternalControllerStatus.close,
+      hosts:
+          (json['hosts'] as Map<String, dynamic>?)?.map(
+            (k, e) => MapEntry(k, e as String),
+          ) ??
+          const {},
+    );
+
+Map<String, dynamic> _$PatchClashConfigToJson(_PatchClashConfig instance) =>
     <String, dynamic>{
       'mixed-port': instance.mixedPort,
       'socks-port': instance.socksPort,
@@ -405,8 +423,6 @@ Map<String, dynamic> _$ClashConfigToJson(_ClashConfig instance) =>
       'dns': instance.dns,
       'geox-url': instance.geoXUrl,
       'geodata-loader': _$GeodataLoaderEnumMap[instance.geodataLoader]!,
-      'proxy-groups': instance.proxyGroups,
-      'rule': instance.rule,
       'global-ua': instance.globalUa,
       'external-controller':
           _$ExternalControllerStatusEnumMap[instance.externalController]!,

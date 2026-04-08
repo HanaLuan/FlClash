@@ -5,7 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'generated/clash_config.freezed.dart';
 part 'generated/clash_config.g.dart';
 
-const defaultClashConfig = ClashConfig();
+const defaultClashConfig = PatchClashConfig();
 
 const defaultTun = Tun();
 const defaultDns = Dns();
@@ -108,19 +108,35 @@ abstract class ProxyGroup with _$ProxyGroup {
     List<String>? use,
     int? interval,
     bool? lazy,
+    @JsonKey(name: 'disable-udp') bool? disableUDP,
     String? url,
     int? timeout,
     @JsonKey(name: 'max-failed-times') int? maxFailedTimes,
     String? filter,
-    @JsonKey(name: 'expected-filter') String? excludeFilter,
+    @JsonKey(name: 'exclude-filter') String? excludeFilter,
     @JsonKey(name: 'exclude-type') String? excludeType,
-    @JsonKey(name: 'expected-status') dynamic expectedStatus,
+    @JsonKey(name: 'expected-status') String? expectedStatus,
+    @JsonKey(name: 'include-all') bool? includeAll,
+    @JsonKey(name: 'include-all-proxies') bool? includeAllProxies,
+    @JsonKey(name: 'include-all-providers') bool? includeAllProviders,
     bool? hidden,
     String? icon,
+    String? order,
   }) = _ProxyGroup;
 
   factory ProxyGroup.fromJson(Map<String, Object?> json) =>
       _$ProxyGroupFromJson(json);
+}
+
+@freezed
+abstract class Proxy with _$Proxy {
+  const factory Proxy({
+    required String name,
+    required String type,
+    String? now,
+  }) = _Proxy;
+
+  factory Proxy.fromJson(Map<String, Object?> json) => _$ProxyFromJson(json);
 }
 
 @freezed
@@ -211,7 +227,7 @@ abstract class FallbackFilter with _$FallbackFilter {
   const factory FallbackFilter({
     @Default(true) bool geoip,
     @Default('CN') @JsonKey(name: 'geoip-code') String geoipCode,
-    @Default(['gfw']) List<String> geosite,
+    @Default(['']) List<String> geosite,
     @Default(['240.0.0.0/4']) List<String> ipcidr,
     @Default(['+.google.com', '+.facebook.com', '+.youtube.com'])
     List<String> domain,
@@ -390,7 +406,7 @@ extension RulesExt on List<Rule> {
     var newList = List<Rule>.from(this);
     final index = newList.indexWhere((item) => item.id == rule.id);
     if (index != -1) {
-      newList[index] = rule;
+      rule = newList[index] = rule;
     } else {
       newList.insert(0, rule);
     }
@@ -413,34 +429,36 @@ List<Rule> _genRule(List<dynamic>? rules) {
   return rules.map((item) => Rule.value(item)).toList();
 }
 
-List<RuleProvider> _genRuleProviders(Map<String, dynamic> json) {
-  return json.entries.map((entry) => RuleProvider(name: entry.key)).toList();
-}
-
-List<SubRule> _genSubRules(Map<String, dynamic> json) {
-  return json.entries.map((entry) => SubRule(name: entry.key)).toList();
-}
-
-@freezed
-abstract class ClashConfigSnippet with _$ClashConfigSnippet {
-  const factory ClashConfigSnippet({
-    @Default([]) @JsonKey(name: 'proxy-groups') List<ProxyGroup> proxyGroups,
-    @JsonKey(fromJson: _genRule, name: 'rules') @Default([]) List<Rule> rule,
-    @JsonKey(name: 'rule-providers', fromJson: _genRuleProviders)
-    @Default([])
-    List<RuleProvider> ruleProvider,
-    @JsonKey(name: 'sub-rules', fromJson: _genSubRules)
-    @Default([])
-    List<SubRule> subRules,
-  }) = _ClashConfigSnippet;
-
-  factory ClashConfigSnippet.fromJson(Map<String, Object?> json) =>
-      _$ClashConfigSnippetFromJson(json);
-}
+// List<RuleProvider> _genRuleProviders(Map<String, dynamic> json) {
+//   return json.entries.map((entry) => RuleProvider(name: entry.key)).toList();
+// }
+//
+// List<SubRule> _genSubRules(Map<String, dynamic> json) {
+//   return json.entries.map((entry) => SubRule(name: entry.key)).toList();
+// }
 
 @freezed
 abstract class ClashConfig with _$ClashConfig {
   const factory ClashConfig({
+    @Default([]) @JsonKey(name: 'proxy-groups') List<ProxyGroup> proxyGroups,
+    @JsonKey(fromJson: _genRule) @Default([]) List<Rule> rules,
+    @Default([]) List<Proxy> proxies,
+    // @JsonKey(name: 'rule-providers', fromJson: _genRuleProviders)
+    // @Default([])
+    // List<RuleProvider> ruleProvider,
+    // @JsonKey(name: 'sub-rules', fromJson: _genSubRules)
+    // @Default([])
+    // List<SubRule> subRules,
+    @Default({}) Map<String, String> proxyTypeMap,
+  }) = _ClashConfig;
+
+  factory ClashConfig.fromJson(Map<String, Object?> json) =>
+      _$ClashConfigFromJson(json);
+}
+
+@freezed
+abstract class PatchClashConfig with _$PatchClashConfig {
+  const factory PatchClashConfig({
     @Default(defaultMixedPort) @JsonKey(name: 'mixed-port') int mixedPort,
     @Default(0) @JsonKey(name: 'socks-port') int socksPort,
     @Default(0) @JsonKey(name: 'port') int port,
@@ -469,24 +487,22 @@ abstract class ClashConfig with _$ClashConfig {
     @Default(GeodataLoader.memconservative)
     @JsonKey(name: 'geodata-loader')
     GeodataLoader geodataLoader,
-    @Default([]) @JsonKey(name: 'proxy-groups') List<ProxyGroup> proxyGroups,
-    @Default([]) List<String> rule,
     @JsonKey(name: 'global-ua') String? globalUa,
     @Default(ExternalControllerStatus.close)
     @JsonKey(name: 'external-controller')
     ExternalControllerStatus externalController,
     @Default({}) Map<String, String> hosts,
-  }) = _ClashConfig;
+  }) = _PatchClashConfig;
 
-  factory ClashConfig.fromJson(Map<String, Object?> json) =>
-      _$ClashConfigFromJson(json);
+  factory PatchClashConfig.fromJson(Map<String, Object?> json) =>
+      _$PatchClashConfigFromJson(json);
 
-  factory ClashConfig.safeFormJson(Map<String, Object?>? json) {
+  factory PatchClashConfig.safeFormJson(Map<String, Object?>? json) {
     if (json == null) {
       return defaultClashConfig;
     }
     try {
-      return ClashConfig.fromJson(json);
+      return PatchClashConfig.fromJson(json);
     } catch (_) {
       return defaultClashConfig;
     }

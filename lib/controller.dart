@@ -210,6 +210,10 @@ extension StateControllerExt on AppController {
     return _ref.read(isMobileViewProvider);
   }
 
+  Size get viewSize {
+    return _ref.read(viewSizeProvider);
+  }
+
   bool get isStart {
     return _ref.read(isStartProvider);
   }
@@ -228,10 +232,6 @@ extension StateControllerExt on AppController {
 
   String? getSelectedProxyName(String groupName) {
     return _ref.read(getSelectedProxyNameProvider(groupName));
-  }
-
-  Future<SetupState> getSetupState(int profileId) async {
-    return await _ref.read(setupStateProvider(profileId).future);
   }
 
   String getRealTestUrl(String? url) {
@@ -669,7 +669,7 @@ extension SetupControllerExt on AppController {
 
   Future<Map<String, dynamic>> getProfile({
     required SetupState setupState,
-    required ClashConfig patchConfig,
+    required PatchClashConfig patchConfig,
   }) async {
     final profileId = setupState.profileId;
     if (profileId == null) {

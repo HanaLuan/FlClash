@@ -487,18 +487,9 @@ class BuildCommand extends Command {
 
     String? coreSha256;
 
-    if (Platform.isWindows && target == Target.windows) {
+    if (Platform.isWindows) {
       coreSha256 = await Build.calcSha256(corePaths.first);
-      if (skipHelper) {
-        print('skip Windows helper build');
-      } else if (await Build.hasCommand('cargo')) {
-        await Build.buildHelper(target, coreSha256);
-      } else {
-        print(
-          'warning: cargo is not available, skip building ${Build.helperFileName(target)}. '
-          'Windows privileged service features will be unavailable in this build.',
-        );
-      }
+      await Build.buildHelper(target, coreSha256);
     }
     await _buildEnvFile(env, coreSha256: coreSha256);
     if (out != 'app') {

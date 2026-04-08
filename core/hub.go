@@ -96,39 +96,47 @@ func handleValidateConfig(path string) string {
 	return ""
 }
 
-func getProxyGroupNames(proxies map[string]constant.Proxy) []string {
-	names := make([]string, 0, len(proxies))
-	hasGlobal := false
-	for name, proxy := range proxies {
-		if proxy == nil {
-			continue
-		}
-		switch proxy.Type() {
-		case constant.Selector,
-			constant.URLTest,
-			constant.Fallback,
-			constant.Relay,
-			constant.LoadBalance:
-			if name == "GLOBAL" {
-				hasGlobal = true
-				continue
-			}
-			names = append(names, name)
-		}
-	}
-	slices.Sort(names)
-	if hasGlobal {
-		names = append([]string{"GLOBAL"}, names...)
-	}
-	return names
-}
-
 func handleGetProxies() ProxiesData {
 	runLock.Lock()
 	defer runLock.Unlock()
 
-	proxies := getProxiesWithProviders()
-	allNames := getProxyGroupNames(proxies)
+	nameList := config.GetProxyNameList()
+
+	proxies := make(map[string]constant.Proxy)
+
+	for name, proxy := range tunnel.Proxies() {
+		proxies[name] = proxy
+	}
+	for _, p := range tunnel.Providers() {
+		for _, proxy := range p.Proxies() {
+			proxies[proxy.Name()] = proxy
+		}
+	}
+
+	hasGlobal := false
+	allNames := make([]string, 0, len(nameList)+1)
+
+	for _, name := range nameList {
+		if name == "GLOBAL" {
+			hasGlobal = true
+		}
+
+		p, ok := proxies[name]
+		if !ok || p == nil {
+			continue
+		}
+		switch p.Type() {
+		case constant.Selector, constant.URLTest, constant.Fallback, constant.Relay, constant.LoadBalance:
+			allNames = append(allNames, name)
+		default:
+		}
+	}
+
+	if !hasGlobal {
+		if p, ok := proxies["GLOBAL"]; ok && p != nil {
+			allNames = append([]string{"GLOBAL"}, allNames...)
+		}
+	}
 
 	return ProxiesData{
 		All:     allNames,
@@ -175,7 +183,7 @@ func handleChangeProxy(data string, fn func(string string)) {
 }
 
 func handleGetTraffic(onlyStatisticsProxy bool) string {
-	up, down := statistic.DefaultManager.Now(onlyStatisticsProxy)
+	up, down := statistic.DefaultManager.NowTraffic(onlyStatisticsProxy)
 	traffic := map[string]int64{
 		"up":   up,
 		"down": down,
@@ -189,7 +197,7 @@ func handleGetTraffic(onlyStatisticsProxy bool) string {
 }
 
 func handleGetTotalTraffic(onlyStatisticsProxy bool) string {
-	up, down := statistic.DefaultManager.Total(onlyStatisticsProxy)
+	up, down := statistic.DefaultManager.TotalTraffic(onlyStatisticsProxy)
 	traffic := map[string]int64{
 		"up":   up,
 		"down": down,

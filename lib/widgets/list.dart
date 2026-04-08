@@ -1,7 +1,9 @@
+import 'package:collection/collection.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/controller.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/widgets/inherited.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -312,7 +314,7 @@ class ListItem<T> extends StatelessWidget {
                   maxWidth: openDelegate.maxWidth,
                   forceFull: openDelegate.forceFull,
                 ),
-                builder: (_, type) {
+                builder: (_) {
                   return child;
                 },
               );
@@ -344,7 +346,7 @@ class ListItem<T> extends StatelessWidget {
               blur: nextDelegate.blur,
               maxWidth: nextDelegate.maxWidth,
             ),
-            builder: (_, type) {
+            builder: (_) {
               return child;
             },
           );
@@ -540,6 +542,27 @@ Widget generateSectionV2({
   );
 }
 
+Widget generateSectionV3({
+  String? title,
+  required Iterable<Widget> items,
+  List<Widget>? actions,
+}) {
+  final genItems = items.mapIndexed<Widget>((index, item) {
+    final position = ItemPosition.get(index, items.length);
+    if (position != ItemPosition.middle) {
+      return ItemPositionProvider(position: position, child: item);
+    }
+    return item;
+  });
+  return Column(
+    children: [
+      if (items.isNotEmpty && title != null)
+        ListHeader(title: title, actions: actions),
+      Column(children: [...genItems]),
+    ],
+  );
+}
+
 List<Widget> generateInfoSection({
   required Info info,
   required Iterable<Widget> items,
@@ -587,7 +610,6 @@ class CommonSelectedListItem extends StatelessWidget {
         margin: EdgeInsets.symmetric(vertical: 4, horizontal: 16),
         color: Colors.transparent,
         child: CommonCard(
-          padding: EdgeInsets.zero,
           radius: 18,
           type: CommonCardType.filled,
           isSelected: isSelected,
@@ -621,92 +643,105 @@ class CommonSelectedListItem extends StatelessWidget {
   }
 }
 
-class CommonInputListItem extends StatelessWidget {
+class DecorationListItem extends StatelessWidget {
   final bool isDecorator;
-  final bool isFirst;
-  final bool isLast;
-  final Widget? title;
+  final Widget title;
   final Widget? subtitle;
   final Widget? leading;
   final Widget? trailing;
   final bool? isSelected;
   final VoidCallback? onPressed;
+  final double minVerticalPadding;
 
-  const CommonInputListItem({
+  const DecorationListItem({
     super.key,
     this.isDecorator = false,
-    this.isFirst = false,
-    this.isLast = false,
-    this.title,
+    required this.title,
     this.leading,
     this.trailing,
     this.subtitle,
     this.isSelected,
     this.onPressed,
+    this.minVerticalPadding = 6,
   });
 
   @override
   Widget build(BuildContext context) {
+    final position = ItemPositionProvider.of(context)?.position;
+    final isStart = [
+      ItemPosition.start,
+      ItemPosition.startAndEnd,
+    ].contains(position);
+    final isEnd = [
+      ItemPosition.end,
+      ItemPosition.startAndEnd,
+    ].contains(position);
     return Container(
-      clipBehavior: Clip.hardEdge,
+      clipBehavior: Clip.antiAlias,
       decoration: ShapeDecoration(
         shape: isDecorator == true
             ? LinearBorder.none
             : RoundedSuperellipseBorder(
                 borderRadius: BorderRadius.vertical(
-                  top: isFirst ? Radius.circular(24) : Radius.zero,
-                  bottom: isLast ? Radius.circular(24) : Radius.zero,
+                  top: isStart ? Radius.circular(24) : Radius.zero,
+                  bottom: isEnd ? Radius.circular(24) : Radius.zero,
                 ),
               ),
       ),
       child: CommonCard(
         radius: 0,
         isSelected: isSelected,
+        padding: EdgeInsets.zero,
         type: CommonCardType.filled,
         onPressed: onPressed,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: ListTile(
-                leading: leading,
-                contentPadding: const EdgeInsets.only(right: 16, left: 16),
-                title: title,
-                subtitle: subtitle,
-                minVerticalPadding: 14,
-                trailing: trailing,
-              ),
-            ),
-            if (isDecorator != true && !isLast)
-              Divider(height: 0, indent: 14, endIndent: 14),
-          ],
+        child: LayoutBuilder(
+          builder: (_, constraints) {
+            final isInfinite = constraints.maxHeight >= double.infinity;
+            final tile = ListTile(
+              leading: leading,
+              contentPadding: const EdgeInsets.only(right: 16, left: 16),
+              title: title,
+              subtitle: subtitle,
+              minVerticalPadding: minVerticalPadding,
+              minTileHeight: 54,
+              trailing: trailing,
+            );
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  fit: isInfinite ? FlexFit.loose : FlexFit.tight,
+                  child: tile,
+                ),
+                if (isDecorator != true && !isEnd)
+                  Divider(height: 0, indent: 14, endIndent: 14),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class CommonSelectedInputListItem extends StatelessWidget {
+class SelectedDecorationListItem extends StatelessWidget {
   final bool isSelected;
   final bool isEditing;
   final Widget title;
   final Widget? subtitle;
   final VoidCallback onSelected;
   final VoidCallback onPressed;
-  final bool isFirst;
-  final bool isLast;
   final bool isDecorator;
   final Widget? leading;
 
-  const CommonSelectedInputListItem({
+  const SelectedDecorationListItem({
     super.key,
     required this.isSelected,
     required this.onSelected,
     this.isEditing = false,
     required this.title,
     required this.onPressed,
-    this.isFirst = false,
-    this.isLast = false,
     this.isDecorator = false,
     this.subtitle,
     this.leading,
@@ -714,12 +749,10 @@ class CommonSelectedInputListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CommonInputListItem(
+    return DecorationListItem(
       title: title,
       isDecorator: isDecorator,
       isSelected: isSelected,
-      isFirst: isFirst,
-      isLast: isLast,
       leading: leading,
       onPressed: isDecorator
           ? null

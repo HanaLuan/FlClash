@@ -1,5 +1,6 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/state.dart';
@@ -678,6 +679,20 @@ Future<Script?> script(Ref ref, int? scriptId) async {
 }
 
 @riverpod
+Future<ClashConfig> clashConfig(Ref ref, int profileId) async {
+  final configMap = await coreController.getConfig(profileId);
+  final clashConfig = ClashConfig.fromJson(configMap);
+  final Map<String, String> proxyTypeMap = {};
+  for (final proxy in clashConfig.proxies) {
+    proxyTypeMap[proxy.name] = proxy.type;
+  }
+  for (final proxyGroup in clashConfig.proxyGroups) {
+    proxyTypeMap[proxyGroup.name] = proxyGroup.type.value;
+  }
+  return clashConfig.copyWith(proxyTypeMap: proxyTypeMap);
+}
+
+@riverpod
 Future<SetupState> setupState(Ref ref, int? profileId) async {
   final profile = ref.watch(profileProvider(profileId));
   final scriptId = profile?.scriptId;
@@ -686,9 +701,15 @@ Future<SetupState> setupState(Ref ref, int? profileId) async {
   final dns = ref.watch(patchClashConfigProvider.select((state) => state.dns));
   final script = await ref.watch(scriptProvider(scriptId).future);
   final overrideDns = ref.watch(overrideDnsProvider);
-  final List<Rule> addedRules = profileId != null
-      ? await ref.watch(addedRuleStreamProvider(profileId).future)
-      : [];
+  List<Rule> addedRules = [];
+  if (profileId != null) {
+    final currentProfileId = ref.read(currentProfileIdProvider);
+    if (currentProfileId == profileId) {
+      addedRules = await ref.watch(addedRulesStreamProvider(profileId).future);
+    } else {
+      addedRules = await ref.read(addedRulesProvider(profileId).future);
+    }
+  }
   return SetupState(
     profileId: profileId,
     profileLastUpdateDate: profileLastUpdateDate,
@@ -705,4 +726,13 @@ class AccessControlState extends _$AccessControlState
     with AutoDisposeNotifierMixin {
   @override
   AccessControlProps build() => AccessControlProps();
+}
+
+@Riverpod(name: 'proxyGroupProvider')
+class ProxyGroupProvider extends _$ProxyGroupProvider
+    with AutoDisposeNotifierMixin {
+  @override
+  ProxyGroup build() {
+    return throw 'Initialization proxyGroupProvider error';
+  }
 }

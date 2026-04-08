@@ -45,7 +45,7 @@ enum GroupType {
   Relay;
 
   static GroupType parseProfileType(String type) {
-    return switch (type) {
+    return switch (type.toLowerCase()) {
       'url-test' => URLTest,
       'select' => Selector,
       'fallback' => Fallback,
@@ -72,7 +72,13 @@ extension GroupTypeExtension on GroupType {
     return GroupType.values[index];
   }
 
-  String get value => GroupTypeExtension.valueList[index];
+  String get value => switch (this) {
+    GroupType.URLTest => 'url-test',
+    GroupType.Selector => 'select',
+    GroupType.Fallback => 'fallback',
+    GroupType.LoadBalance => 'load-balance',
+    GroupType.Relay => 'relay',
+  };
 }
 
 enum UsedProxy { GLOBAL, DIRECT, REJECT }
@@ -282,6 +288,7 @@ enum FunctionTag {
   autoScrollToEnd,
   loadedProvider,
   saveSharedFile,
+  removeProxy,
 }
 
 enum DashboardWidget {
@@ -402,7 +409,7 @@ enum OverwriteType {
   // none,
   standard,
   script,
-  // custom,
+  custom,
 }
 
 enum RuleTarget { DIRECT, REJECT, MATCH }
@@ -424,3 +431,43 @@ enum LoadingTag { profiles, backup_restore, access, proxies }
 enum CoreStatus { connecting, connected, disconnected }
 
 enum RuleScene { added, disabled, custom }
+
+enum ItemPosition {
+  start,
+  middle,
+  end,
+  startAndEnd;
+
+  static ItemPosition get(int index, int length) {
+    ItemPosition position = ItemPosition.middle;
+    if (length == 1) {
+      position = ItemPosition.startAndEnd;
+    } else if (index == length - 1) {
+      position = ItemPosition.end;
+    } else if (index == 0) {
+      position = ItemPosition.start;
+    }
+    return position;
+  }
+
+  static ItemPosition calculateVisualPosition<T>(
+    int currentIndex,
+    List<T> items,
+    Set<T> deletedItems,
+  ) {
+    final currentItem = items[currentIndex];
+    if (deletedItems.contains(currentItem)) {
+      return ItemPosition.middle;
+    }
+    final int visualLength = items.length - deletedItems.length;
+    if (visualLength <= 0) return ItemPosition.middle;
+    int deletedCountBeforeMe = 0;
+    for (int i = 0; i < currentIndex; i++) {
+      if (deletedItems.contains(items[i])) {
+        deletedCountBeforeMe++;
+      }
+    }
+    final int visualIndex = currentIndex - deletedCountBeforeMe;
+    return ItemPosition.get(visualIndex, visualLength);
+  }
+}
