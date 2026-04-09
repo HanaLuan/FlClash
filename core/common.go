@@ -52,6 +52,19 @@ func getExternalProvidersRaw() map[string]cp.Provider {
 	return eps
 }
 
+func getProxiesWithProviders() map[string]constant.Proxy {
+	proxies := make(map[string]constant.Proxy)
+	for name, proxy := range tunnel.Proxies() {
+		proxies[name] = proxy
+	}
+	for _, p := range tunnel.Providers() {
+		for _, proxy := range p.Proxies() {
+			proxies[proxy.Name()] = proxy
+		}
+	}
+	return proxies
+}
+
 func toExternalProvider(p cp.Provider) (*ExternalProvider, error) {
 	switch p.(type) {
 	case *provider.ProxySetProvider:
@@ -138,13 +151,8 @@ func stopListeners() {
 }
 
 func patchSelectGroup(mapping map[string]string) {
-	for name, proxy := range tunnel.ProxiesWithProviders() {
-		outbound, ok := proxy.(*adapter.Proxy)
-		if !ok {
-			continue
-		}
-
-		selector, ok := outbound.ProxyAdapter.(outboundgroup.SelectAble)
+	for name, proxy := range getProxiesWithProviders() {
+		selector, ok := proxy.Adapter().(outboundgroup.SelectAble)
 		if !ok {
 			continue
 		}
